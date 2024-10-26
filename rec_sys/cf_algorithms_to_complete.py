@@ -2,6 +2,38 @@
 # Algorithms for collaborative filtering
 
 import numpy as np
+from scipy.sparse import (
+    coo_array,
+    csr_array,
+)
+
+def centered_cosine_sim(
+    x: coo_array | csr_array,
+    y: coo_array | csr_array,
+    centered: bool = False,
+) -> float:
+    """Compute centered cosine similarity for sparse arrays."""
+    if (
+        x.shape[0] != y.shape[0]
+        or x.ndim > 1
+        or y.ndim > 1
+    ):
+        raise ValueError
+    
+    mean_x = 0
+    mean_y = 0
+        
+    if not centered:
+        mean_x = np.array([x.mean()] * x.shape[0])
+        mean_y = np.array([y.mean()] * y.shape[0])
+    
+    x_centered = x.tocsr() - csr_array(mean_x)
+    y_centered = y.tocsr() - csr_array(mean_y)
+
+    norm_x = np.sqrt((x_centered * x_centered).sum())
+    norm_y = np.sqrt((y_centered * y_centered).sum())
+
+    return x_centered.dot(y_centered) / (norm_x * norm_y)
 
 
 def center_and_nan_to_zero(matrix, axis=0):
@@ -16,6 +48,7 @@ def center_and_nan_to_zero(matrix, axis=0):
 
 def cosine_sim(u, v):
     return np.dot(u, v) / (np.linalg.norm(u) * np.linalg.norm(v))
+
 
 
 def fast_cosine_sim(utility_matrix, vector, axis=0):
