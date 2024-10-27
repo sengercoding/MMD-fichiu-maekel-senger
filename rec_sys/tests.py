@@ -4,7 +4,7 @@ from scipy.sparse import coo_array
 import rec_sys.cf_algorithms_to_complete as cfa
 
 
-def test_centered_cosine_distance_neg_corr(k: int = 100, tol: float = 1e-6):
+def test_centered_cosine_sim_neg_corr(k: int = 100, tol: float = 1e-6):
     x = np.array([i + 1 for i in range(k)])
     y = x[::-1]
 
@@ -17,7 +17,7 @@ def test_centered_cosine_distance_neg_corr(k: int = 100, tol: float = 1e-6):
     assert np.abs(res - expected_res) <= tol
 
 
-def test_centered_cosine_distance_nan(k: int = 100, tol: float = 1e-6):
+def test_centered_cosine_sim_nan(k: int = 100, tol: float = 1e-6):
     x = np.array([i + 1 for i in range(k)], dtype=float)
     y = x[::-1].copy()
     
