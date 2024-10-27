@@ -8,8 +8,8 @@ from scipy.sparse import (
 )
 
 def centered_cosine_sim(
-    x: coo_array | csr_array,
-    y: coo_array | csr_array,
+    x: coo_array,
+    y: coo_array,
     centered: bool = False,
 ) -> float:
     """Compute centered cosine similarity for sparse arrays."""
@@ -24,12 +24,12 @@ def centered_cosine_sim(
     y_centered = y.tocsr()
         
     if not centered:
-        # .mean() computes the mean over all elements.
+        # .mean() compute the mean over all elements.
         mean_x = csr_array(
             (np.array([x.sum() / x.size] * x.size), x.coords),
             shape=x.shape,
         )
-        # .mean() computes the mean over all elements.
+        # .mean() compute the mean over all elements.
         mean_y = csr_array(
             (np.array([y.sum() / y.size] * y.size), y.coords),
             shape=y.shape,
@@ -38,8 +38,27 @@ def centered_cosine_sim(
         x_centered -= mean_x
         y_centered -= mean_y
 
-    norm_x = np.sqrt((x_centered * x_centered).sum())
-    norm_y = np.sqrt((y_centered * y_centered).sum())
+    # Get indices of common elements.
+    common_idxs = np.intersect1d(x_centered.indices, y_centered.indices)
+    # Compute norms based on common elements.
+    # Note: The lecture presents two implementations for the
+    # centered cosine similarity for sparse arrays.
+    # The first one (Lec. 1, slide 35) computes the norm
+    # using all elements. This corresponds to the commented
+    # code below. On the next slide, however, only the 
+    # common elements are used. This corresponds to the code below.
+    # Depending on the implementation, different
+    # results are produced (i.e., lower similaritt for full norm).
+    #
+    # In the context of 1d. arrays, the common elements implementation
+    # doesn't produce overhead to implement. However, for matrices it leads
+    # to massive overhead. This is why, for the exercise,
+    # we will compute the norm over all the elements.
+    # norm_x = np.sqrt((x_centered * x_centered).sum())
+    # norm_y = np.sqrt((y_centered * y_centered).sum())
+
+    norm_x = np.linalg.norm([x_centered[idx] for idx in common_idxs])
+    norm_y = np.linalg.norm([y_centered[idx] for idx in common_idxs])
 
     return x_centered.dot(y_centered) / (norm_x * norm_y)
 
@@ -56,7 +75,6 @@ def center_and_nan_to_zero(matrix, axis=0):
 
 def cosine_sim(u, v):
     return np.dot(u, v) / (np.linalg.norm(u) * np.linalg.norm(v))
-
 
 
 def fast_cosine_sim(utility_matrix, vector, axis=0):

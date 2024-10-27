@@ -36,7 +36,7 @@ def test_centered_cosine_distance_nan(k: int = 100, tol: float = 1e-6):
         coo_array(y),
     )
 
-    expected_res = -0.709542
+    expected_res = -0.9998540
     assert np.abs(res - expected_res) <= tol
 
 
