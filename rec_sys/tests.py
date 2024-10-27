@@ -41,5 +41,5 @@ def test_centered_cosine_sim_nan(k: int = 100, tol: float = 1e-6):
 
 
 if __name__ == "__main__":
-    test_centered_cosine_distance_neg_corr()
-    test_centered_cosine_distance_nan()
+    test_centered_cosine_sim_neg_corr()
+    test_centered_cosine_sim_nan()
