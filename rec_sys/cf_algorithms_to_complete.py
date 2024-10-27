@@ -19,16 +19,24 @@ def centered_cosine_sim(
         or y.ndim > 1
     ):
         raise ValueError
-    
-    mean_x = 0
-    mean_y = 0
+
+    x_centered = x.tocsr()
+    y_centered = y.tocsr()
         
     if not centered:
-        mean_x = np.array([x.mean()] * x.shape[0])
-        mean_y = np.array([y.mean()] * y.shape[0])
+        # .mean() computes the mean over all elements.
+        mean_x = csr_array(
+            (np.array([x.sum() / x.size] * x.size), x.coords),
+            shape=x.shape,
+        )
+        # .mean() computes the mean over all elements.
+        mean_y = csr_array(
+            (np.array([y.sum() / y.size] * y.size), y.coords),
+            shape=y.shape,
+        )
     
-    x_centered = x.tocsr() - csr_array(mean_x)
-    y_centered = y.tocsr() - csr_array(mean_y)
+        x_centered -= mean_x
+        y_centered -= mean_y
 
     norm_x = np.sqrt((x_centered * x_centered).sum())
     norm_y = np.sqrt((y_centered * y_centered).sum())
