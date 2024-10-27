@@ -81,11 +81,11 @@ def centered_fast_cosine_sim(
 
     means = sums / ne_cols
 
+    user_mean = means[user_index]
+
     rows, cols = um.nonzero()
     # Select means for each column.
     means = means[cols]
-
-    user_mean = means[user_index]
 
     # Center matrix.
     um[(rows, cols)] -= means
@@ -152,8 +152,6 @@ def rate_all_items(
     # Get all ratings
     ratings = list(map(rate_one_item, range(num_items)))
     return ratings
-
-    
 
 
 def center_and_nan_to_zero(matrix, axis=0):
