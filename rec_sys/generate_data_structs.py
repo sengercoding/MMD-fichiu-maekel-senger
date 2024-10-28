@@ -11,6 +11,7 @@ user_col = shelve.open("user_col")
 
 #test = ratings_tf.take(1)
 i=0
+max_id = 0 
 for example in ratings_tf:
     i+=1
     if i % 1000 == 0:
@@ -23,6 +24,9 @@ for example in ratings_tf:
         temp = [example["user_id"].numpy()]
     rated_by[str(example["movie_id"].numpy())] = temp
     
+    if example["movie_id"].numpy() > max_id:
+        max_id = int(example["movie_id"].numpy())
+    
     if str(example["user_id"].numpy()) in user_col:
         temp2 = user_col[str(example["user_id"].numpy())]
         temp2.append( (example["movie_id"].numpy(), example["user_rating"].numpy()))
@@ -30,12 +34,13 @@ for example in ratings_tf:
         temp2 = [(example["movie_id"].numpy(), example["user_rating"].numpy())]
     user_col[str(example["user_id"].numpy())] = temp2
 
+max_id += 1
 for key in user_col:
     temp3 = user_col[key]
     temp4 =   list(zip(*temp3))
     idx = np.array(temp4[0])
     data = np.array(temp4[1])
-    max_id = max(idx)+1
+    
     user_col[key] = coo_array((data, (np.zeros(len(idx)),idx)), shape=(1, max_id) )
                               
 rated_by.close()
