@@ -76,6 +76,42 @@ def mse_loss_one_batch(mat_u, mat_v, record):
     return mse
 
 
+def reg_mse_loss_all_batches(mat_u, mat_v, dataset, batch_size, reg_param):
+    """ Compute mse per batch using vectorized operations
+        Returns a list of mse values for all batches as floats
+    """
+    mse_all_batches = []
+    for record in tfds.as_numpy(dataset.batch(batch_size)):
+        mse = reg_mse_loss_one_batch(mat_u, mat_v, record, reg_param)
+        mse_all_batches.append(mse)
+    # convert list of arrays to list of floats
+    mse_all_batches = list(map(float, mse_all_batches))
+    return mse_all_batches
+
+@jax.jit  # Comment out for single-step debugging
+def reg_mse_loss_one_batch(
+    mat_u,
+    mat_v,
+    record,
+    reg_param: float,
+):
+    """This colab experiment motivates the implementation:
+    https://colab.research.google.com/drive/1c0LpSndbTJaHVoLTatQCbGhlsWbpgvYh?usp&#x3D;sharing=
+    """
+    rows, columns, ratings = record["movie_id"], record["user_id"], record["user_rating"]
+
+    ### Compute error term ###
+    estimator = -(mat_u @ mat_v)[(rows, columns)]
+    square_err = jnp.square(estimator + ratings)
+    mse = jnp.mean(square_err)
+
+    ### Compute regularization term ###
+    reg = reg_param * jnp.sum(jnp.square(mat_u[rows, :]))
+    reg += reg_param * jnp.sum(jnp.square(mat_v[:, columns]))
+
+    return mse + reg
+
+
 def uv_factorization_dense_um(mat_u, mat_v, mat_um, num_epochs=1, learning_rate=0.01, reg_param=0.1):
     """ Matrix factorization using stochastic gradient descent (SGD) for a dense utility matrix
         Terribly slow implementation, just for illustration purposes
@@ -168,6 +204,32 @@ def uv_factorization_vec_reg(mat_u, mat_v, train_ds, valid_ds, config):
         Fast vectorized implementation using JAX.
     """
 
+    @jax.jit  # Comment out for single-step debugging
+    def update_uv(mat_u, mat_v, record, lr, reg_param):
+        loss_value, grad = jax.value_and_grad(reg_mse_loss_one_batch, argnums=[0, 1])(mat_u, mat_v, record, reg_param)
+        mat_u = mat_u - lr * grad[0]
+        mat_v = mat_v - lr * grad[1]
+        return mat_u, mat_v, loss_value
+
+    for epoch in range(config.num_epochs):
+        lr = config.fixed_learning_rate if config.fixed_learning_rate is not None \
+            else config.dyn_lr_initial * (config.dyn_lr_decay_rate ** (epoch / config.dyn_lr_steps))
+        print(f"In uv_factorization_vec_reg, starting epoch {epoch} with lr={lr:.6f}")
+        train_loss = []
+        for record in tfds.as_numpy(train_ds.batch(config.batch_size_training)):
+            mat_u, mat_v, loss = update_uv(mat_u, mat_v, record, lr, config.reg_param)
+            train_loss.append(loss)
+
+        train_loss_mean = jnp.mean(jnp.array(train_loss))
+        # Compute loss on the validation set
+        valid_loss = reg_mse_loss_all_batches(
+            mat_u, mat_v, valid_ds, config.batch_size_predict_with_mse, config.reg_param,
+        )
+        valid_loss_mean = jnp.mean(jnp.array(valid_loss))
+        print(
+            f"Epoch {epoch} finished, ave training loss: {train_loss_mean:.6f}, ave validation loss: {valid_loss_mean:.6f}")
+    return mat_u, mat_v
+
     
 
 
@@ -176,6 +238,7 @@ class Flags:
     evaluate_uv_factorization_dense_um = False
     evaluate_uv_factorization_tf_slow = False
     evaluate_uv_factorization_vec_no_reg = True
+    evaluate_uv_factorization_vec_reg = True
 
 
 # Test the functions
@@ -233,5 +296,16 @@ if __name__ == '__main__':
 
         # Optimize the factors fast
         matrix_u, matrix_v = uv_factorization_vec_no_reg(matrix_u, matrix_v, train_ds, valid_ds, config)
+
+        show_metrics_and_examples("====== After optimization =====", matrix_u, matrix_v)
+
+    if Flags.evaluate_uv_factorization_vec_reg:
+        ratings_tf, matrix_u, matrix_v, num_users, num_items = load_data_and_init_factors(config)
+        train_ds, valid_ds, test_ds = data.split_train_valid_test_tf(ratings_tf, config)
+
+        show_metrics_and_examples("====== Before optimization =====", matrix_u, matrix_v)
+
+        # Optimize the factors fast
+        matrix_u, matrix_v = uv_factorization_vec_reg(matrix_u, matrix_v, train_ds, valid_ds, config)
 
         show_metrics_and_examples("====== After optimization =====", matrix_u, matrix_v)
