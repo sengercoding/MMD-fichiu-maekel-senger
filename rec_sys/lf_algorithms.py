@@ -198,7 +198,7 @@ def uv_factorization_vec_no_reg(mat_u, mat_v, train_ds, valid_ds, config):
     return mat_u, mat_v
 
 
-def uv_factorization_vec_reg(mat_u, mat_v, train_ds, valid_ds, config):
+def uv_factorization_vec_reg(mat_u, mat_v, train_ds, valid_ds, config,log=True):
     """ Matrix factorization using SGD with regularization.
 
         Fast vectorized implementation using JAX.
@@ -214,7 +214,8 @@ def uv_factorization_vec_reg(mat_u, mat_v, train_ds, valid_ds, config):
     for epoch in range(config.num_epochs):
         lr = config.fixed_learning_rate if config.fixed_learning_rate is not None \
             else config.dyn_lr_initial * (config.dyn_lr_decay_rate ** (epoch / config.dyn_lr_steps))
-        print(f"In uv_factorization_vec_reg, starting epoch {epoch} with lr={lr:.6f}")
+        if(log==True):
+            print(f"In uv_factorization_vec_reg, starting epoch {epoch} with lr={lr:.6f}")
         train_loss = []
         for record in tfds.as_numpy(train_ds.batch(config.batch_size_training)):
             mat_u, mat_v, loss = update_uv(mat_u, mat_v, record, lr, config.reg_param)
@@ -226,8 +227,9 @@ def uv_factorization_vec_reg(mat_u, mat_v, train_ds, valid_ds, config):
             mat_u, mat_v, valid_ds, config.batch_size_predict_with_mse, config.reg_param,
         )
         valid_loss_mean = jnp.mean(jnp.array(valid_loss))
-        print(
-            f"Epoch {epoch} finished, ave training loss: {train_loss_mean:.6f}, ave validation loss: {valid_loss_mean:.6f}")
+        if(log==True):
+            print(
+                f"Epoch {epoch} finished, ave training loss: {train_loss_mean:.6f}, ave validation loss: {valid_loss_mean:.6f}")
     return mat_u, mat_v
 
     
